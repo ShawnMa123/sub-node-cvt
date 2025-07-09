@@ -38,7 +38,6 @@ const App = {
         });
 
         // --- Watchers ---
-        // 当节点 YAML 变化时，重置中转链相关的状态
         watch(nodesYAML, () => {
             chains.value = [];
             newChain.value = { relay: '', landing: '' };
@@ -56,7 +55,6 @@ const App = {
             chains.value.splice(index, 1);
         };
 
-        // Base64 URL Safe anocode
         const base64UrlEncode = (str) => {
             return btoa(unescape(encodeURIComponent(str)))
                 .replace(/\+/g, '-')
@@ -65,11 +63,9 @@ const App = {
         };
 
         const generateSubscription = () => {
-            // 重置状态
             errorMsg.value = '';
             subscriptionUrl.value = '';
 
-            // 1. 验证节点 YAML
             if (!nodesYAML.value.trim()) {
                 errorMsg.value = "节点配置不能为空。";
                 return;
@@ -87,12 +83,10 @@ const App = {
                 return;
             }
 
-            // 2. 编码数据
             const encodedNodes = base64UrlEncode(nodesYAML.value);
             const rulesString = selectedRules.value.join(',');
             const encodedChains = chains.value.length > 0 ? base64UrlEncode(JSON.stringify(chains.value)) : '';
 
-            // 3. 组装 URL
             const params = new URLSearchParams({
                 nodes: encodedNodes,
                 rules: rulesString,
@@ -107,13 +101,21 @@ const App = {
         };
 
         const copyToClipboard = () => {
-            if (subscriptionUrl.value) {
-                navigator.clipboard.writeText(subscriptionUrl.value).then(() => {
-                    alert('订阅链接已复制到剪贴板！');
-                }).catch(err => {
-                    alert('复制失败: ', err);
-                });
+            if (!subscriptionUrl.value) return;
+
+            // **--- 以下是修改过的部分 ---**
+            if (!navigator.clipboard) {
+                alert('您的浏览器不支持剪贴板 API，或当前环境不安全 (非 https 或 localhost)。请手动复制。');
+                return;
             }
+
+            navigator.clipboard.writeText(subscriptionUrl.value).then(() => {
+                alert('订阅链接已复制到剪贴板！');
+            }).catch(err => {
+                console.error('复制失败:', err);
+                alert(`复制失败，请手动复制。错误信息: ${err.message}`);
+            });
+            // **--- 修改结束 ---**
         };
 
         return {

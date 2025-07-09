@@ -1,3 +1,4 @@
+// main.go
 package main
 
 import (
@@ -12,7 +13,6 @@ func main() {
 	http.HandleFunc("/sub", handler.SubscriptionHandler)
 
 	// Static file server for the frontend
-	// 这会把所有不匹配 /sub 的请求都交给文件服务器处理
 	fs := http.FileServer(http.Dir("./frontend"))
 	http.Handle("/", fs)
 
