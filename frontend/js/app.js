@@ -1,11 +1,8 @@
-const { createApp, ref, computed, watch } = Vue;
+const { createApp, ref, computed, watch, onMounted } = Vue;
 
 const App = {
     setup() {
         // --- Reactive State ---
-        // *** 修改点 1: 不再使用相对路径，而是动态构建基础 URL ***
-        const baseUrl = `${window.location.origin}/sub`;
-
         const nodesYAML = ref('');
         const availableRules = ref([
             { id: 'gfw', name: 'GFW 规则', selected: true },
@@ -16,44 +13,30 @@ const App = {
         );
         const newChain = ref({ relay: '', landing: '' });
         const chains = ref([]);
-        const subscriptionUrl = ref('');
+        const finalUrl = ref('');
         const errorMsg = ref('');
 
-        // ... (其他 computed, watchers, methods 保持不变) ...
+        // Gist/Auth related state
+        const githubUser = ref(null);
+        const isSavingGist = ref(false);
+
+        // --- Computed Properties ---
         const availableNodeNames = computed(() => {
             if (!nodesYAML.value) return [];
             try {
                 const doc = jsyaml.load(nodesYAML.value);
-                if (Array.isArray(doc)) {
-                    return doc.map(node => node.name).filter(Boolean);
-                }
-                return [];
+                return Array.isArray(doc) ? doc.map(node => node.name).filter(Boolean) : [];
             } catch (e) {
                 return [];
             }
         });
 
         const clashImportUrl = computed(() => {
-            if (!subscriptionUrl.value) return '#';
-            return `clash://install-config?url=${encodeURIComponent(subscriptionUrl.value)}`;
+            if (!finalUrl.value) return '#';
+            return `clash://install-config?url=${encodeURIComponent(finalUrl.value)}`;
         });
 
-        watch(nodesYAML, () => {
-            chains.value = [];
-            newChain.value = { relay: '', landing: '' };
-        });
-
-        const addChain = () => {
-            if (newChain.value.relay && newChain.value.landing) {
-                chains.value.push({ ...newChain.value });
-                newChain.value = { relay: '', landing: '' };
-            }
-        };
-
-        const removeChain = (index) => {
-            chains.value.splice(index, 1);
-        };
-
+        // --- Methods ---
         const base64UrlEncode = (str) => {
             return btoa(unescape(encodeURIComponent(str)))
                 .replace(/\+/g, '-')
@@ -61,25 +44,19 @@ const App = {
                 .replace(/=/g, '');
         };
 
-        const generateSubscription = () => {
+        const validateAndGetParams = () => {
             errorMsg.value = '';
-            subscriptionUrl.value = '';
-
             if (!nodesYAML.value.trim()) {
                 errorMsg.value = "节点配置不能为空。";
-                return;
+                return null;
             }
             try {
                 const doc = jsyaml.load(nodesYAML.value);
-                if (!Array.isArray(doc) || doc.length === 0) {
-                    throw new Error('YAML is not a valid list or is empty.');
-                }
-                if (!doc.every(item => item && typeof item.name === 'string')) {
-                    throw new Error('All nodes in the list must have a "name" field.');
-                }
+                if (!Array.isArray(doc) || doc.length === 0) throw new Error('YAML 不是一个有效的列表或为空。');
+                if (!doc.every(item => item && typeof item.name === 'string')) throw new Error('列表中的所有节点都必须包含 "name" 字段。');
             } catch (e) {
                 errorMsg.value = `YAML 格式错误: ${e.message}`;
-                return;
+                return null;
             }
 
             const encodedNodes = base64UrlEncode(nodesYAML.value);
@@ -91,45 +68,97 @@ const App = {
                 rules: rulesString,
                 client: 'meta'
             });
-
             if (encodedChains) {
                 params.append('chains', encodedChains);
             }
-
-            // *** 修改点 2: 使用完整的基础 URL 来拼接最终链接 ***
-            subscriptionUrl.value = `${baseUrl}?${params.toString()}`;
+            return params;
         };
 
-        const copyToClipboard = () => {
-            if (!subscriptionUrl.value) return;
+        const generatePreviewLink = () => {
+            finalUrl.value = '';
+            const params = validateAndGetParams();
+            if (params) {
+                finalUrl.value = `${window.location.origin}/sub?${params.toString()}`;
+            }
+        };
 
-            if (!navigator.clipboard) {
-                alert('您的浏览器不支持剪贴板 API，或当前环境不安全 (非 https 或 localhost)。请手动复制。');
+        const saveToGist = async () => {
+            if (!githubUser.value) {
+                errorMsg.value = "请先使用 GitHub 登录以保存 Gist。";
                 return;
             }
 
-            navigator.clipboard.writeText(subscriptionUrl.value).then(() => {
-                alert('订阅链接已复制到剪贴板！');
-            }).catch(err => {
-                console.error('复制失败:', err);
-                alert(`复制失败，请手动复制。错误信息: ${err.message}`);
-            });
+            const params = validateAndGetParams();
+            if (!params) return;
+
+            isSavingGist.value = true;
+            finalUrl.value = '';
+
+            try {
+                // 1. 获取完整的 YAML 内容
+                const tempSubUrl = `${window.location.origin}/sub?${params.toString()}`;
+                const response = await fetch(tempSubUrl);
+                if (!response.ok) throw new Error(`无法生成配置: ${await response.text()}`);
+                const yamlContent = await response.text();
+
+                // 2. 调用后端 API 创建 Gist
+                const gistResponse = await fetch('/api/gist', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        description: 'Generated by sub-node-cvt',
+                        filename: `clash-config.yaml`,
+                        content: yamlContent,
+                    }),
+                });
+
+                if (!gistResponse.ok) throw new Error(`创建 Gist 失败: ${await gistResponse.text()}`);
+                const result = await gistResponse.json();
+
+                // 3. 显示 Gist Raw URL
+                finalUrl.value = result.raw_url;
+
+            } catch (e) {
+                errorMsg.value = e.message;
+            } finally {
+                isSavingGist.value = false;
+            }
         };
 
+        const fetchGithubUser = async () => {
+            try {
+                const resp = await fetch('/api/user');
+                if (resp.ok) {
+                    githubUser.value = await resp.json();
+                } else {
+                    githubUser.value = null;
+                }
+            } catch (e) {
+                console.error("Failed to fetch user info:", e);
+                githubUser.value = null;
+            }
+        };
+
+        const logout = () => {
+            // 清除 cookie 的标准方法是让服务器设置一个过期的 cookie
+            // 这里我们用前端的方式乐观地更新 UI，并刷新页面以确保 cookie 生效
+            document.cookie = "github_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+            githubUser.value = null;
+            window.location.reload();
+        };
+
+        onMounted(() => {
+            fetchGithubUser();
+        });
+
+        const addChain = () => { if (newChain.value.relay && newChain.value.landing) { chains.value.push({ ...newChain.value }); newChain.value = { relay: '', landing: '' }; } };
+        const removeChain = (index) => { chains.value.splice(index, 1); };
+        const copyToClipboard = () => { if (!finalUrl.value) return; if (!navigator.clipboard) { alert('您的浏览器不支持剪贴板 API，或当前环境不安全 (非 https 或 localhost)。请手动复制。'); return; } navigator.clipboard.writeText(finalUrl.value).then(() => { alert('链接已复制到剪贴板！'); }).catch(err => { console.error('复制失败:', err); alert(`复制失败: ${err.message}`); }); };
+
         return {
-            nodesYAML,
-            availableRules,
-            selectedRules,
-            newChain,
-            chains,
-            subscriptionUrl,
-            errorMsg,
-            availableNodeNames,
-            clashImportUrl,
-            addChain,
-            removeChain,
-            generateSubscription,
-            copyToClipboard,
+            nodesYAML, availableRules, selectedRules, newChain, chains, finalUrl, errorMsg,
+            availableNodeNames, clashImportUrl, addChain, removeChain, generatePreviewLink, copyToClipboard,
+            githubUser, isSavingGist, saveToGist, logout
         };
     }
 };

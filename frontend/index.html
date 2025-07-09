@@ -17,6 +17,15 @@
         <header>
             <h1>订阅链接生成器</h1>
             <p>轻量、无痕、保护隐私。所有配置信息均存储于链接中。</p>
+            <div class="auth-section">
+                <div v-if="githubUser">
+                    <span>已作为 <strong>{{ githubUser.login }}</strong> 登录</span>
+                    <button @click="logout" class="logout-btn">登出</button>
+                </div>
+                <a v-else href="/auth/github" class="github-btn">
+                    使用 GitHub 登录以保存到 Gist
+                </a>
+            </div>
         </header>
 
         <main>
@@ -68,14 +77,17 @@
 
             <!-- 区域四：生成与结果 -->
             <section class="generation-area">
-                <button @click="generateSubscription" class="generate-btn">🚀 生成订阅链接</button>
+                <button @click="generatePreviewLink" class="generate-btn">🚀 生成预览链接</button>
+                <button @click="saveToGist" class="gist-btn" :disabled="!githubUser || isSavingGist">
+                    {{ isSavingGist ? '保存中...' : '💾 保存到私密 Gist' }}
+                </button>
 
                 <div v-if="errorMsg" class="error-box">
                     <strong>错误：</strong> {{ errorMsg }}
                 </div>
 
-                <div v-if="subscriptionUrl" class="result-box">
-                    <input type="text" :value="subscriptionUrl" readonly>
+                <div v-if="finalUrl" class="result-box">
+                    <input type="text" :value="finalUrl" readonly>
                     <button @click="copyToClipboard">复制</button>
                     <a :href="clashImportUrl" class="import-btn">一键导入Clash</a>
                 </div>

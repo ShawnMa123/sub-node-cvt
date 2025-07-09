@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	// --- 这里是修正的地方 ---
 	"github.com/ShawnMa123/sub-node-cvt/internal/types"
 	"gopkg.in/yaml.v3"
 )
@@ -63,7 +64,7 @@ func GenerateConfig(nodesYAML, rulesStr, chainsJSON string) ([]byte, error) {
 		config.ProxyGroups = append(config.ProxyGroups, relayGroup)
 		chainGroupNames = append(chainGroupNames, groupName)
 	}
-	
+
 	// 4. 创建 "PROXY" 选择组
 	proxySelectGroup := types.ProxyGroup{
 		Name:    "PROXY",
@@ -73,10 +74,9 @@ func GenerateConfig(nodesYAML, rulesStr, chainsJSON string) ([]byte, error) {
 	// 将 "PROXY" 组插入到所有组的最前面
 	config.ProxyGroups = append([]types.ProxyGroup{proxySelectGroup}, config.ProxyGroups...)
 
-
 	// 5. 加载并合并规则
 	config.RuleProviders = make(map[string]types.RuleProvider)
-	
+
 	// 首先添加兜底规则
 	finalRules := []string{
 		"GEOIP,CN,DIRECT",
@@ -93,22 +93,17 @@ func GenerateConfig(nodesYAML, rulesStr, chainsJSON string) ([]byte, error) {
 		ruleFilePath := filepath.Join(rulesetsDir, ruleName+".yaml")
 		ruleData, err := os.ReadFile(ruleFilePath)
 		if err != nil {
-			// 如果规则文件不存在，可以跳过或返回错误
-			// 这里我们选择跳过，以增加容错性
 			continue
 		}
 
 		var ruleSet types.RuleSetContent
 		if err := yaml.Unmarshal(ruleData, &ruleSet); err != nil {
-			// 同上，跳过错误的规则文件
 			continue
 		}
 
-		// 合并 RuleProviders
 		for name, provider := range ruleSet.RuleProviders {
 			config.RuleProviders[name] = provider
 		}
-		// 将规则插入到兜底规则之前
 		finalRules = append(ruleSet.Rules, finalRules...)
 	}
 

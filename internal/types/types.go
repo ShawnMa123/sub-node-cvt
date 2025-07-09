@@ -14,21 +14,21 @@ type RuleSetContent struct {
 
 // ClashConfig 是最终生成的 Clash 配置文件的完整结构
 type ClashConfig struct {
-	Port           int                     `yaml:"port"`
-	SocksPort      int                     `yaml:"socks-port"`
-	RedirPort      int                     `yaml:"redir-port"`
-	TProxyPort     int                     `yaml:"tproxy-port"`
-	MixedPort      int                     `yaml:"mixed-port"`
-	AllowLan       bool                    `yaml:"allow-lan"`
-	Mode           string                  `yaml:"mode"`
-	LogLevel       string                  `yaml:"log-level"`
-	ExternalUI     string                  `yaml:"external-ui"`
-	DNS            DNS                     `yaml:"dns"`
-	Proxies        []map[string]any        `yaml:"proxies"`
-	ProxyGroups    []ProxyGroup            `yaml:"proxy-groups"`
-	RuleProviders  map[string]RuleProvider `yaml:"rule-providers,omitempty"`
-	Rules          []string                `yaml:"rules"`
-	TUN            TUN                     `yaml:"tun,omitempty"`
+	Port          int                     `yaml:"port"`
+	SocksPort     int                     `yaml:"socks-port"`
+	RedirPort     int                     `yaml:"redir-port"`
+	TProxyPort    int                     `yaml:"tproxy-port"`
+	MixedPort     int                     `yaml:"mixed-port"`
+	AllowLan      bool                    `yaml:"allow-lan"`
+	Mode          string                  `yaml:"mode"`
+	LogLevel      string                  `yaml:"log-level"`
+	ExternalUI    string                  `yaml:"external-ui"`
+	DNS           DNS                     `yaml:"dns"`
+	Proxies       []map[string]any        `yaml:"proxies"`
+	ProxyGroups   []ProxyGroup            `yaml:"proxy-groups"`
+	RuleProviders map[string]RuleProvider `yaml:"rule-providers,omitempty"`
+	Rules         []string                `yaml:"rules"`
+	TUN           TUN                     `yaml:"tun,omitempty"`
 }
 
 type DNS struct {
@@ -61,9 +61,9 @@ type RuleProvider struct {
 }
 
 type TUN struct {
-	Enable        bool   `yaml:"enable"`
-	Stack         string `yaml:"stack"`
+	Enable        bool     `yaml:"enable"`
+	Stack         string   `yaml:"stack"`
 	DNSHijack     []string `yaml:"dns-hijack"`
-	AutoRoute     bool   `yaml:"auto-route"`
-	AutoDetectInt bool   `yaml:"auto-detect-interface"`
+	AutoRoute     bool     `yaml:"auto-route"`
+	AutoDetectInt bool     `yaml:"auto-detect-interface"`
 }
