@@ -1,0 +1,11 @@
+# 广告屏蔽规则
+rule-providers:
+  AdGuard:
+    type: http
+    behavior: domain
+    url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/reject.txt"
+    path: ./rulesets/adguard.yaml
+    interval: 86400
+
+rules:
+  - RULE-SET,AdGuard,REJECT

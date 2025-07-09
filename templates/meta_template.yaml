@@ -1,0 +1,51 @@
+# 基础端口设置
+port: 7890
+socks-port: 7891
+mixed-port: 7893
+allow-lan: true
+mode: rule
+log-level: info
+external-ui: "yacd-gh-pages" # 使用 YACD 面板
+
+# DNS 设置
+dns:
+  enable: true
+  ipv6: false
+  listen: 0.0.0.0:1053
+  enhanced-mode: fake-ip
+  fake-ip-range: 198.18.0.1/16
+  default-nameserver:
+    - 223.5.5.5
+    - 119.29.29.29
+  nameserver:
+    - https://dns.alidns.com/dns-query
+    - https://doh.pub/dns-query
+  fallback:
+    - https://1.1.1.1/dns-query
+    - https://dns.google/dns-query
+  fallback-filter:
+    geoip: true
+    ipcidr:
+      - 240.0.0.0/4
+
+# TUN (可选，如果需要系统级代理)
+# tun:
+#  enable: true
+#  stack: system
+#  dns-hijack:
+#    - any:53
+#  auto-route: true
+#  auto-detect-interface: true
+
+# --- 以下部分将由程序动态填充 ---
+proxies:
+  # 节点列表将被插入到这里
+
+proxy-groups:
+  # 代理组将被插入到这里
+
+rule-providers:
+  # 规则提供者将被插入到这里
+
+rules:
+  # 规则列表将被插入到这里

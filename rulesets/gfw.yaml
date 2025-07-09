@@ -1,0 +1,11 @@
+# GFW 规则
+rule-providers:
+  GFW:
+    type: http
+    behavior: classical
+    url: "https://cdn.jsdelivr.net/gh/Loyalsoldier/clash-rules@release/gfw.txt"
+    path: ./rulesets/gfw.yaml
+    interval: 86400
+
+rules:
+  - RULE-SET,GFW,PROXY
