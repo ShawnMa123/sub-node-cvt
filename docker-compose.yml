@@ -1,0 +1,11 @@
+version: '3.8'
+services:
+  sub-node-cvt:
+    build: .
+    container_name: sub-node-cvt
+    ports:
+      - "8080:8080"
+    # 自动从 .env 文件加载环境变量
+    env_file:
+      - .env
+    restart: always
