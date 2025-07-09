@@ -22,7 +22,8 @@ func SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 2. Base64 解码
-	nodesYAML, err := base64.URLEncoding.DecodeString(nodesB64)
+	// --- 修改点 1: 使用 RawURLEncoding 来处理无填充的 Base64 字符串 ---
+	nodesYAML, err := base64.RawURLEncoding.DecodeString(nodesB64)
 	if err != nil {
 		http.Error(w, "invalid base64 for 'nodes'", http.StatusBadRequest)
 		return
@@ -30,7 +31,8 @@ func SubscriptionHandler(w http.ResponseWriter, r *http.Request) {
 
 	var chainsJSON []byte
 	if chainsB64 != "" {
-		chainsJSON, err = base64.URLEncoding.DecodeString(chainsB64)
+		// --- 修改点 2: 同样，对 chains 参数也使用 RawURLEncoding ---
+		chainsJSON, err = base64.RawURLEncoding.DecodeString(chainsB64)
 		if err != nil {
 			http.Error(w, "invalid base64 for 'chains'", http.StatusBadRequest)
 			return
