@@ -2,41 +2,48 @@
 
 [中文](./README.md) | **English**
 
-A lightweight, stateless, and privacy-focused subscription link generator for Clash/Clash-Meta. It allows users to convert node configurations (in YAML format) into powerful subscription links through a simple web interface, supporting custom rules, relay chains, and other advanced features.
+A lightweight, stateless, and privacy-focused subscription link generator for Clash/Clash-Meta. It allows users to convert node configurations (in YAML format) into powerful subscription links and supports secure, private hosting via GitHub Gists.
 
-Thanks to its stateless design, the backend service stores no user data. All configuration information is encoded into the generated URL, ensuring ultimate privacy and security.
+The core design philosophy is **statelessness and privacy-first**. When using the URL mode, all configuration is encoded in the link itself. When using the Gist mode, the configuration is securely stored in the user's own private Gist. The backend service never stores any user data.
 
-![alt text](image.png)
-
+![alt text](image-1.png)
 ---
 
 ## ✨ Core Features
 
--   **Stateless & Privacy-First**: The backend stores zero user data. All information is processed dynamically from the URL.
--   **Lightweight**: A high-performance backend written in Go and a minimal frontend built with vanilla Vue 3, resulting in extremely low resource consumption.
--   **Easy to Deploy**: Can be run as a single binary on a local machine/server, and is a perfect fit for serverless platforms like Cloudflare Workers.
+-   **Dual Generation Modes**:
+    -   **URL Mode**: Encodes all configurations into a very long URL. Simple, direct, and requires no authentication.
+    -   **Gist Mode**: Through GitHub OAuth, securely saves the generated configuration to the user's own **private Gist**, providing a short and stable subscription link. Updating the configuration is as simple as editing the Gist.
+-   **Privacy & Security**:
+    -   The backend is completely stateless and does not log any user information or configurations.
+    -   Gist creation uses the standard OAuth 2.0 flow, requesting only the minimum necessary permissions.
 -   **Powerful Configuration**:
     -   Direct input support for Clash Meta `proxies` in YAML format.
     -   Configuration of relay chains (chain proxies).
     -   Pluggable rule sets (e.g., ad-blocking, GFW list).
-    -   Automatic generation of proxy groups, including all original nodes and relay chains.
--   **Friendly User Interface**: A clean and intuitive web UI with real-time feedback, enabling one-click generation and copying of subscription links.
+-   **Lightweight & High-Performance**:
+    -   The backend is written in Go, offering excellent performance and low resource usage.
+    -   The frontend is built with Vue 3 for a responsive user experience.
+-   **Multiple Deployment Options**: Supports local execution, traditional server deployment, and containerization via Docker.
 
 ## 🛠️ Tech Stack
 
 -   **Backend**: Go (Golang)
-    -   Web Framework: `net/http` (Standard Library)
-    -   YAML Parsing: `gopkg.in/yaml.v3`
--   **Frontend**: Vue 3 (Composition API)
-    -   UI: Custom minimalist CSS
-    -   Dependencies: `js-yaml` (for parsing node names on the client-side)
--   **Database**: None! (All config templates and rule sets are stored as files within the project repository)
+    -   Web Framework: `net/http`
+    -   GitHub Integration: `golang.org/x/oauth2`, `github.com/google/go-github`
+-   **Frontend**: Vue 3 (Composition API) & `js-yaml`
+-   **Deployment**: Docker, Docker Compose, systemd
 
-## 🚀 Quick Start
+## 🚀 Quick Start (Local Development)
 
 ### 1. Prerequisites
 
--   Go 1.18 or higher
+-   Go 1.23 or higher.
+-   A GitHub OAuth Application for the Gist feature.
+    -   Create one in your [GitHub Developer Settings](https://github.com/settings/developers).
+    -   **Homepage URL**: `http://localhost:8080`
+    -   **Authorization callback URL**: `http://localhost:8080/auth/github/callback`
+    -   Obtain the `Client ID` and `Client Secret` after creation.
 
 ### 2. Clone the Repository
 
@@ -45,68 +52,91 @@ git clone https://github.com/ShawnMa123/sub-node-cvt.git
 cd sub-node-cvt
 ```
 
-### 3. Install Dependencies
+### 3. Configure Environment Variables
 
-Go will handle dependencies automatically on the first run, but you can also install them manually.
-
-```bash
-go mod tidy
-```
-
-### 4. Run Locally
-
-Run the following command to start both the backend API and the frontend static file server.
+To run the application locally, you need to set environment variables. The easiest way is via a single command:
 
 ```bash
-go run main.go
+# Replace "xxx" with your actual ID and Secret
+GITHUB_CLIENT_ID="xxx" GITHUB_CLIENT_SECRET="xxx" go run main.go
 ```
+The application will start at `http://localhost:8080`.
 
-Once the service is running, open your browser and navigate to `http://localhost:8080`.
+### 4. How to Use
 
-### 5. How to Use
+1.  Open `http://localhost:8080` in your browser.
+2.  **(Optional) Sign in with GitHub**: Click "Sign in with GitHub" to enable the Gist feature.
+3.  **Paste Nodes**: Paste your Clash `proxies` list into the text area.
+4.  **Select Rules & Configure Relays**.
+5.  **Generate Link**:
+    -   Click **"Generate Preview Link"** to get a long URL containing all information.
+    -   If signed in, click **"Save to Private Gist"** to upload the configuration to your GitHub and get a short, stable Gist raw URL as the subscription link.
 
-1.  **Paste Nodes**: Paste your Clash `proxies` list (in YAML format) into the first text area.
-2.  **Select Rules**: Check the rules you want to include, such as "AdGuard" or "GFW".
-3.  **(Optional) Configure Relay Chains**:
-    -   After you input nodes, the dropdown menus for relay configuration will be enabled.
-    -   Select a "Relay Node (Entry)" and a "Landing Node (Exit)".
-    -   Click the "Add" button. You can add multiple relay chains.
-4.  **Generate Link**: Click the "🚀 Generate Subscription Link" button.
-5.  **Use the Link**:
-    -   Copy the generated subscription link.
-    -   Add it to Clash Meta or any other compatible client.
+## Deployment Options
 
-## Deployment
+### Option 1: Using Docker and Docker Compose (Recommended)
 
-### On a Standard Server
+This is the simplest and most portable deployment method.
 
-1.  **Build the Binary**:
-    For optimal performance and compatibility, build the binary for your target server.
+1.  **Create a `.env` file**:
+    Create a `.env` file in the project root and fill in your secrets:
+    ```env
+    GITHUB_CLIENT_ID="iv1.xxxxxxxxxxxxxxxx"
+    GITHUB_CLIENT_SECRET="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    ```
+    **IMPORTANT**: Add the `.env` file to your `.gitignore`!
 
+2.  **Start the Service**:
+    With Docker and Docker Compose installed, run the following command in the project root:
     ```bash
-    # Build for a Linux server
-    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o sub-node-cvt main.go
+    docker-compose up -d
+    ```
+    The service will be running at `http://<your_server_ip>:8080`.
+
+### Option 2: Using `systemd` on a Linux Server
+
+This is a stable and reliable method for traditional deployments.
+
+1.  **Build the Application**:
+    Compile a static binary for your Linux server:
+    ```bash
+    CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o sub-node-cvt main.go
     ```
 
 2.  **Upload Files**:
-    Upload the following files and directories to your server:
+    Upload the following files and directories to the same location on your server (e.g., `/opt/sub-node-cvt/`):
     -   `sub-node-cvt` (the compiled binary)
-    -   `frontend/` (the entire directory)
-    -   `templates/` (the entire directory)
-    -   `rulesets/` (the entire directory)
+    -   `frontend/`
+    -   `templates/`
+    -   `rulesets/`
 
-3.  **Run the Service**:
-    Execute the binary on your server. It is recommended to use a process manager like `systemd` or `supervisor`.
+3.  **Configure the `systemd` Service**:
+    -   Create an environment file at `/etc/sub-node-cvt/config.env` and add your secrets.
+    -   Create a `systemd` unit file at `/etc/systemd/system/sub-node-cvt.service` with the following content:
+    ```ini
+    [Unit]
+    Description=Subscription Node Converter
+    After=network.target
 
-    ```bash
-    ./sub-node-cvt
+    [Service]
+    User=your_username # Replace with your username
+    WorkingDirectory=/opt/sub-node-cvt # Replace with your app directory
+    EnvironmentFile=/etc/sub-node-cvt/config.env
+    ExecStart=/opt/sub-node-cvt/sub-node-cvt
+    Restart=always
+
+    [Install]
+    WantedBy=multi-user.target
     ```
 
-    The service will run on port `8080` by default. You can use a reverse proxy like Nginx or Caddy to configure a domain name and HTTPS.
+4.  **Start the Service**:
+    ```bash
+    sudo systemctl daemon-reload
+    sudo systemctl enable --now sub-node-cvt
+    ```
 
 ## 💡 Future Plans
 
--   [ ] Support for more node formats (e.g., V2RayN share links).
+-   [ ] Support more node formats (e.g., V2RayN share links).
+-   [ ] Allow users to update an existing Gist instead of creating a new one each time.
 -   [ ] Adapt for deployment on Cloudflare Workers.
--   [ ] Allow users to provide custom rule set URLs.
--   [ ] Provide a Docker image for easy containerized deployment.
