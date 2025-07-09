@@ -3,12 +3,13 @@ const { createApp, ref, computed, watch } = Vue;
 const App = {
     setup() {
         // --- Reactive State ---
-        const backendUrl = '/sub'; // 假设前端和后端部署在同一个域名下
+        // *** 修改点 1: 不再使用相对路径，而是动态构建基础 URL ***
+        const baseUrl = `${window.location.origin}/sub`;
+
         const nodesYAML = ref('');
         const availableRules = ref([
             { id: 'gfw', name: 'GFW 规则', selected: true },
             { id: 'adguard', name: '屏蔽广告', selected: true },
-            // 在此添加更多可用规则
         ]);
         const selectedRules = ref(
             availableRules.value.filter(r => r.selected).map(r => r.id)
@@ -18,7 +19,7 @@ const App = {
         const subscriptionUrl = ref('');
         const errorMsg = ref('');
 
-        // --- Computed Properties ---
+        // ... (其他 computed, watchers, methods 保持不变) ...
         const availableNodeNames = computed(() => {
             if (!nodesYAML.value) return [];
             try {
@@ -37,13 +38,11 @@ const App = {
             return `clash://install-config?url=${encodeURIComponent(subscriptionUrl.value)}`;
         });
 
-        // --- Watchers ---
         watch(nodesYAML, () => {
             chains.value = [];
             newChain.value = { relay: '', landing: '' };
         });
 
-        // --- Methods ---
         const addChain = () => {
             if (newChain.value.relay && newChain.value.landing) {
                 chains.value.push({ ...newChain.value });
@@ -97,13 +96,13 @@ const App = {
                 params.append('chains', encodedChains);
             }
 
-            subscriptionUrl.value = `${backendUrl}?${params.toString()}`;
+            // *** 修改点 2: 使用完整的基础 URL 来拼接最终链接 ***
+            subscriptionUrl.value = `${baseUrl}?${params.toString()}`;
         };
 
         const copyToClipboard = () => {
             if (!subscriptionUrl.value) return;
 
-            // **--- 以下是修改过的部分 ---**
             if (!navigator.clipboard) {
                 alert('您的浏览器不支持剪贴板 API，或当前环境不安全 (非 https 或 localhost)。请手动复制。');
                 return;
@@ -115,7 +114,6 @@ const App = {
                 console.error('复制失败:', err);
                 alert(`复制失败，请手动复制。错误信息: ${err.message}`);
             });
-            // **--- 修改结束 ---**
         };
 
         return {
