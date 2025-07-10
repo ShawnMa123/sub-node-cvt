@@ -1,4 +1,4 @@
-const { createApp, ref, computed, watch, onMounted } = Vue;
+const { createApp, ref, computed, onMounted } = Vue;
 
 const App = {
     setup() {
@@ -15,8 +15,6 @@ const App = {
         const chains = ref([]);
         const finalUrl = ref('');
         const errorMsg = ref('');
-
-        // Gist/Auth related state
         const githubUser = ref(null);
         const isSavingGist = ref(false);
 
@@ -75,7 +73,8 @@ const App = {
         };
 
         const generatePreviewLink = () => {
-            finalUrl.value = '';
+            finalUrl.value = ''; // 清空之前的结果
+            errorMsg.value = '';
             const params = validateAndGetParams();
             if (params) {
                 finalUrl.value = `${window.location.origin}/sub?${params.toString()}`;
@@ -92,13 +91,17 @@ const App = {
             if (!params) return;
 
             isSavingGist.value = true;
-            finalUrl.value = '';
+            finalUrl.value = ''; // 清空之前的结果
+            errorMsg.value = '';
 
             try {
                 // 1. 获取完整的 YAML 内容
                 const tempSubUrl = `${window.location.origin}/sub?${params.toString()}`;
                 const response = await fetch(tempSubUrl);
-                if (!response.ok) throw new Error(`无法生成配置: ${await response.text()}`);
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`无法生成配置 (步骤1): ${errorText}`);
+                }
                 const yamlContent = await response.text();
 
                 // 2. 调用后端 API 创建 Gist
@@ -112,15 +115,26 @@ const App = {
                     }),
                 });
 
-                if (!gistResponse.ok) throw new Error(`创建 Gist 失败: ${await gistResponse.text()}`);
-                const result = await gistResponse.json();
+                if (!gistResponse.ok) {
+                    const errorText = await gistResponse.text();
+                    throw new Error(`创建 Gist 失败 (步骤2): ${errorText}`);
+                }
 
-                // 3. 显示 Gist Raw URL
-                finalUrl.value = result.raw_url;
+                // *** 关键的修正和优化部分 ***
+                const result = await gistResponse.json();
+                if (result && result.raw_url) {
+                    // 成功获取到 raw_url，将其设置到 finalUrl 以在 UI 上显示
+                    finalUrl.value = result.raw_url;
+                } else {
+                    // 如果后端返回的 JSON 结构不符合预期
+                    throw new Error('从后端返回的数据中未能找到 Gist 链接。');
+                }
 
             } catch (e) {
+                // 将错误信息展示给用户
                 errorMsg.value = e.message;
             } finally {
+                // 无论成功失败，都结束“保存中”的状态
                 isSavingGist.value = false;
             }
         };
@@ -140,11 +154,10 @@ const App = {
         };
 
         const logout = () => {
-            // 清除 cookie 的标准方法是让服务器设置一个过期的 cookie
-            // 这里我们用前端的方式乐观地更新 UI，并刷新页面以确保 cookie 生效
             document.cookie = "github_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
             githubUser.value = null;
-            window.location.reload();
+            // 可以选择刷新页面以确保状态完全清除
+            // window.location.reload();
         };
 
         onMounted(() => {
@@ -156,6 +169,7 @@ const App = {
         const copyToClipboard = () => { if (!finalUrl.value) return; if (!navigator.clipboard) { alert('您的浏览器不支持剪贴板 API，或当前环境不安全 (非 https 或 localhost)。请手动复制。'); return; } navigator.clipboard.writeText(finalUrl.value).then(() => { alert('链接已复制到剪贴板！'); }).catch(err => { console.error('复制失败:', err); alert(`复制失败: ${err.message}`); }); };
 
         return {
+            // 所有需要暴露给模板的状态和方法
             nodesYAML, availableRules, selectedRules, newChain, chains, finalUrl, errorMsg,
             availableNodeNames, clashImportUrl, addChain, removeChain, generatePreviewLink, copyToClipboard,
             githubUser, isSavingGist, saveToGist, logout
